@@ -1,0 +1,44 @@
+diff --git a/boards/nxp/frdm_mcxn236/frdm_mcxn236.dts b/boards/nxp/frdm_mcxn236/frdm_mcxn236.dts
+index 6375c643dc2..530560b060a 100644
+--- a/boards/nxp/frdm_mcxn236/frdm_mcxn236.dts
++++ b/boards/nxp/frdm_mcxn236/frdm_mcxn236.dts
+@@ -327,25 +327,32 @@ nxp_8080_touch_panel_i2c: &flexcomm2_lpi2c2 {
+ 		 */
+ 		boot_partition: partition@0 {
+ 			label = "mcuboot";
+-			reg = <0x00000000 DT_SIZE_K(80)>;
++//			reg = <0x00000000 DT_SIZE_K(80)>;
++			reg = <0x00000000 DT_SIZE_K(64)>;
+ 		};
+ 
+ 		/* For the MCUBoot "upgrade only" method,
+ 		 * the slot sizes must be equal.
+ 		 */
+-		slot0_partition: partition@14000 {
++//		slot0_partition: partition@14000 {
++		slot0_partition: partition@10000 {
+ 			label = "image-0";
+-			reg = <0x00014000 DT_SIZE_K(440)>;
++//			reg = <0x00014000 DT_SIZE_K(440)>;
++			reg = <0x00010000 DT_SIZE_K(192)>;
+ 		};
+ 
+-		slot1_partition: partition@84000 {
++//		slot1_partition: partition@84000 {
++		slot1_partition: partition@40000 {
+ 			label = "image-1";
+-			reg = <0x0084000 DT_SIZE_K(440)>;
++//			reg = <0x0084000 DT_SIZE_K(440)>;
++			reg = <0x0040000 DT_SIZE_K(192)>;
+ 		};
+ 
+-		storage_partition: partition@F0000 {
++//		storage_partition: partition@F0000 {
++		storage_partition: partition@70000 {
+ 			label = "storage";
+-			reg = <0x000F0000 DT_SIZE_K(64)>;
++//			reg = <0x000F0000 DT_SIZE_K(64)>;
++			reg = <0x00070000 DT_SIZE_K(64)>;
+ 		};
+ 	};
+ };
