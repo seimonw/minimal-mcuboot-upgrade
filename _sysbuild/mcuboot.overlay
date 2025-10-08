@@ -9,19 +9,19 @@
 
 		boot_partition: partition@0 {
 			label = "mcuboot";
-			reg = <0x00000000 DT_SIZE_K(64)>;
+			reg = <0x00000000 DT_SIZE_K(80)>;
 		};
-		slot0_partition: partition@10000 {
+		slot0_partition: partition@14000 {
 			label = "image-0";
-			reg = <0x00010000 DT_SIZE_K(128)>;
+			reg = <0x00014000 DT_SIZE_K(128)>;
 		};
-		slot1_partition: partition@30000 {
+		slot1_partition: partition@34000 {
 			label = "image-1";
-			reg = <0x00030000 DT_SIZE_K(128)>;
+			reg = <0x00034000 DT_SIZE_K(128)>;
 		};
-		storage_partition: partition@50000 {
+		storage_partition: partition@54000 {
 			label = "storage";
-			reg = <0x00050000 DT_SIZE_K(64)>;
+			reg = <0x00054000 DT_SIZE_K(64)>;
 		};
 	};
 };
