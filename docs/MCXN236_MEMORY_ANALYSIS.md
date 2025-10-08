@@ -42,43 +42,56 @@ CONFIG_SRAM_BASE_ADDRESS=0x30000000       # SRAM base address
 ## Root Cause Analysis
 
 ### Original Problem
-The hard fault occurred because:
+The hard fault occurred because of a **multi-layered issue**:
 
 1. **Incorrect MCUboot Size**: 64KB configured vs 80KB expected
 2. **Wrong Slot Addresses**: Partitions didn't align with MCUboot's expectations
-3. **Memory Boundary Violations**: Accessing addresses that cross flash bank boundaries
-4. **Address Space Confusion**: Using raw addresses instead of XIP-mapped addresses
+3. **🚨 CRITICAL: TrustZone Security Boundary**: Hardware-enforced ~305KB limit
+4. **Memory Protection Violations**: Accessing Secure flash from Non-Secure world
 
-### Memory Access Pattern
+### Memory Access Pattern and TrustZone Discovery
 ```
 MCUboot Boot Sequence:
-1. Boot from 0x10000000 (XIP base)
-2. Validate primary slot (image-0)
-3. Check secondary slot (image-1) for updates
+1. Boot from 0x10000000 (XIP base) in Non-Secure world
+2. Validate primary slot (image-0) 
+3. Check secondary slot (image-1) for updates ← HARD FAULT HERE
 4. Perform signature validation (RSA-2048)
 5. Copy/activate new image if valid
 ```
 
-The hard fault occurred at step 3 when MCUboot tried to read the secondary slot at the incorrect address.
+**GDB Analysis Revealed:**
+- Memory accessible: 0x00000000-0x0004C0FF (~305KB)
+- Hard boundary: "Cannot access memory" at 0x4C100+
+- This represents the **TrustZone Non-Secure/Secure partition boundary**
 
-## Corrected Memory Layout
+**TrustZone Architecture:**
+```
+Non-Secure Flash: 0x00000000-0x0004C0FF (~305KB) ← MCUboot accessible
+Secure Flash:     0x0004C100-0x000FFFFF (~719KB) ← Hardware protected
+```
+
+The hard fault occurred when MCUboot tried to read the secondary slot at addresses beyond the TrustZone boundary.
+
+## Corrected Memory Layout (TrustZone-Safe)
 
 ### Physical Flash Layout
 ```
-Address Range           Size    Purpose                 Notes
-0x00000000-0x00013FFF   80KB    MCUboot Bootloader     Matches CONFIG_FLASH_LOAD_SIZE
-0x00014000-0x00033FFF   128KB   Primary Slot (image-0)  Application code
-0x00034000-0x00053FFF   128KB   Secondary Slot (image-1) Update staging area
-0x00054000-0x00063FFF   64KB    Storage Partition       Settings/data
-0x00064000-0x000FFFFF   ~616KB  Available/Unused        Future expansion
+Address Range           Size    Purpose                 TrustZone Status
+0x00000000-0x00013FFF   80KB    MCUboot Bootloader     Non-Secure (0-80KB)
+0x00014000-0x0002BFFF   96KB    Primary Slot (image-0)  Non-Secure (80-176KB)
+0x0002C000-0x00043FFF   96KB    Secondary Slot (image-1) Non-Secure (176-272KB)
+0x00044000-0x0004BFFF   32KB    Storage Partition       Non-Secure (272-304KB)
+0x0004C000-0x000FFFFF   ~719KB  Secure Flash Region     Secure (304KB-1MB)
 ```
 
 ### XIP Mapping (Runtime View)
 ```
-XIP Address             Physical Address    Purpose
-0x10000000-0x10013FFF   0x00000000-0x13FFF  MCUboot (executing)
-0x10014000-0x10033FFF   0x00014000-0x33FFF  Primary Slot (executing)
-0x10034000-0x10053FFF   0x00034000-0x53FFF  Secondary Slot (staging)
+XIP Address             Physical Address    Purpose                 TrustZone
+0x10000000-0x10013FFF   0x00000000-0x13FFF  MCUboot (executing)     Non-Secure
+0x10014000-0x1002BFFF   0x00014000-0x2BFFF  Primary Slot (executing) Non-Secure
+0x1002C000-0x10043FFF   0x0002C000-0x43FFF  Secondary Slot (staging) Non-Secure
+0x10044000-0x1004BFFF   0x00044000-0x4BFFF  Storage                 Non-Secure
+0x1004C000-0x100FFFFF   0x0004C000-0xFFFFF  Secure Flash (protected) Secure
 ```
 
 ## Flash Bank Considerations
