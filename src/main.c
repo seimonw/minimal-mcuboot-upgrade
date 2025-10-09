@@ -12,6 +12,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/version.h>
 
+#include "zephyr-0.1.0.signed.h"
+
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #define LED0_NODE DT_ALIAS(led0)
@@ -225,7 +227,42 @@ int main(void)
         led_state = !led_state;
         printf("LED state: %s\n", led_state ? "ON" : "OFF");
         k_sleep(K_MSEC(1000));
+	LOG_INF("Breaking main loop to force upgrade");
+	break;
     }
+
+    int offset = 0;
+    int remaining = sizeof(bins_zephyr_0_1_0_signed_bin);
+    while (remaining) {
+	if (remaining >= 64) {
+            ret = flash_img_buffered_write(
+                    &flash_img_ctx, &bins_zephyr_0_1_0_signed_bin[offset], 64, false);
+	    offset += 64;
+	    remaining -= 64;
+	} else {
+            ret = flash_img_buffered_write(
+                    &flash_img_ctx, &bins_zephyr_0_1_0_signed_bin[offset], remaining, false);
+	    remaining = 0;
+	}
+
+        if (ret) {
+            LOG_ERR("Failed to write to flash: %d", ret);
+            return ret;
+        } else {
+            LOG_DBG("Written bytes to update slot");
+        }
+
+        k_sleep(K_MSEC(5));
+    }
+
+    flash_img_buffered_write(&flash_img_ctx, NULL, 0, true);
+    ret = boot_request_upgrade(true);
+    if (ret) {
+        LOG_ERR("Failed to request upgrade on reboot: %d", ret);
+        return ret;
+    }
+
+    sys_reboot(SYS_REBOOT_COLD);
 
     /* This should never be reached */
     return 0;
